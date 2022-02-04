@@ -1,62 +1,59 @@
 import os
-import tensorflow as tf
-import numpy as np
-from tensorflow import keras
-from skimage import io
+import numpy as np #used for numerical analysis
+from flask import Flask,request,render_template # Flask-It is our framework which we are going to use to run/serve our application.
+#request-for accessing file which was uploaded by the user on our application.
+#render_template- used for rendering the html pages
+from tensorflow.keras.models import load_model #to load our trained model
 from tensorflow.keras.preprocessing import image
 
-from flask import Flask, redirect, url_for, request, render_template
-from werkzeug.utils import secure_filename
-from gevent.pywsgi import WSGIServer
-
-app = Flask(__name__)
 
 
+app=Flask(__name__)#our flask app
+model=load_model(r'model\model.h5')#loading the model
 
-model =tf.keras.models.load_model('model.h5',compile=False)
-print('Model loaded. Check http://127.0.0.1:5000/')
+@app.route("/") #default route
+def about():
+    return render_template("about.html")#rendering html page
 
+@app.route("/about") #route about page
+def home():
+    return render_template("about.html")#rendering html page
 
-def model_predict(img_path, model):
-    img = image.load_img(img_path, grayscale=False, target_size=(64, 64))
-    show_img = image.load_img(img_path, grayscale=False, target_size=(64, 64))
-    x = image.img_to_array(img)
-    x = np.expand_dims(x, axis=0)
-    x = np.array(x, 'float32')
-    x /= 255
-    preds = model.predict(x)
-    return preds
+@app.route("/info") # route for info page
+def information():
+    return render_template("info.html")#rendering html page
 
+@app.route("/upload") # route for uploads
+def test():
+    return render_template("index6.html")#rendering html page
 
-@app.route('/', methods=['GET'])
-def index():
-    return render_template('index.html')
-
-
-@app.route('/predict', methods=['GET', 'POST'])
+@app.route("/predict",methods=["GET","POST"]) #route for our prediction
 def upload():
-    if request.method == 'POST':
-        f = request.files['file']
-
-        basepath = os.path.dirname(__file__)
-        file_path = os.path.join(
-            basepath, 'uploads', secure_filename(f.filename))
-        f.save(file_path)
-
-        preds = model_predict(file_path, model)
-        print(preds[0])
-
-        disease_class = ['Affected','Not affected']
-        a = preds[0]
-        ind=np.argmax(a)
-        print('Prediction: ', disease_class[ind])
-        result=disease_class[ind]
-        return result
+    if request.method=='POST':
+        f=request.files['file'] #requesting the file
+        print(f)
+        basepath=os.path.dirname('__file__')#storing the file directory
+        print(basepath)
+        filepath=os.path.join(basepath,"uploads",f.filename)#storing the file in uploads folder
+        f.save(filepath)#saving the file
+        print(filepath)
+        
+        img=image.load_img(filepath,target_size=(64,64)) #load and reshaping the image
+        x=image.img_to_array(img)
+        x=np.expand_dims(x,axis=0)
+        pred=model.predict(x)
+        print(pred[0][0])
+        print("prediction",pred)#printing the prediction
+        if(pred==0):#checking the results
+            result="Uninfected"
+        else:
+            result="Infected"
+        return result#resturing the result
     return None
 
-
-if __name__ == '__main__':
-  
-    http_server = WSGIServer(('', 5000), app)
-    http_server.serve_forever()
-    app.run()
+#port = int(os.getenv("PORT"))
+if __name__=="__main__":
+    app.run(debug=False)#running our app
+    #app.run(host='0.0.0.0', port=8000,debug=False)
+            
+            
